@@ -1,0 +1,9 @@
+{
+  "routes": [
+    { "src": "/", "dest": "/public/login.html" },
+    { "src": "/login", "dest": "/public/login.html" },
+    { "src": "/dashboard", "dest": "/public/dashboard.html" },
+    { "src": "/topup", "dest": "/public/topup.html" },
+    { "src": "/admin", "dest": "/public/admin.html" }
+  ]
+}
