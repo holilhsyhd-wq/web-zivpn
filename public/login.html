@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login</title>
+  <style>
+    body{margin:0;font-family:system-ui;background:#0b1220;color:#e5e7eb;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+    .card{width:min(420px,100%);background:#0f172a;border:1px solid #1f2a44;border-radius:16px;padding:16px}
+    input,button{width:100%;padding:12px;border-radius:12px;border:1px solid #1f2a44;background:#0a0f1a;color:#e5e7eb;outline:none;margin:8px 0}
+    button{cursor:pointer;background:#7c3aed;border:none}
+    .muted{color:#9ca3af;font-size:12px}
+    .row{display:flex;gap:10px}
+    .row button{width:50%}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3>BARMODS Login</h3>
+    <input id="email" type="email" placeholder="email">
+    <input id="pass" type="password" placeholder="password">
+    <button id="btnLogin">Login</button>
+    <button id="btnGoogle" style="background:#111827;border:1px solid #1f2a44">Google Login</button>
+    <div class="muted">Daftar:</div>
+    <input id="email2" type="email" placeholder="email daftar">
+    <input id="pass2" type="password" placeholder="password daftar">
+    <button id="btnReg" style="background:#22c55e">Register</button>
+    <div class="muted" id="msg"></div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2qOtuozewG34P41Vkl6I_bR9wk43tUlQ",
+    authDomain: "zivpn-e1dd7.firebaseapp.com",
+    projectId: "zivpn-e1dd7",
+    storageBucket: "zivpn-e1dd7.firebasestorage.app",
+    messagingSenderId: "1010308048069",
+    appId: "1:1010308048069:web:d7d69ae0029941d5957cac",
+    measurementId: "G-TDTWLNETJ6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const $ = (id)=>document.getElementById(id);
+
+  $("btnLogin").onclick = async ()=>{
+    try{ await signInWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value); }
+    catch(e){ $("msg").textContent = e.message; }
+  };
+
+  $("btnReg").onclick = async ()=>{
+    try{
+      const cred = await createUserWithEmailAndPassword(auth, $("email2").value.trim(), $("pass2").value);
+      await setDoc(doc(db,"users",cred.user.uid), { role:"user", saldo:0, createdAt: Date.now() }, { merge:true });
+      $("msg").textContent = "Register sukses, silakan login.";
+    }catch(e){ $("msg").textContent = e.message; }
+  };
+
+  $("btnGoogle").onclick = async ()=>{
+    try{
+      const prov = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, prov);
+      await setDoc(doc(db,"users",cred.user.uid), { role:"user", saldo:0, createdAt: Date.now() }, { merge:true });
+    }catch(e){ $("msg").textContent = e.message; }
+  };
+
+  onAuthStateChanged(auth,(u)=>{ if(u) location.href="/dashboard"; });
+</script>
+</body>
+</html>
