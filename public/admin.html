@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin</title>
+  <style>
+    body{margin:0;font-family:system-ui;background:#0b1220;color:#e5e7eb;min-height:100vh;padding:20px}
+    .card{max-width:900px;margin:auto;background:#0f172a;border:1px solid #1f2a44;border-radius:16px;padding:16px}
+    input,button{padding:12px;border-radius:12px;border:1px solid #1f2a44;background:#0a0f1a;color:#e5e7eb;outline:none;margin:6px 0}
+    button{cursor:pointer;border:none;background:#7c3aed}
+    .muted{color:#9ca3af;font-size:12px}
+    .item{border:1px solid #1f2a44;border-radius:14px;padding:12px;margin:10px 0;background:#0a0f1a}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h3>Admin Panel</h3>
+      <button onclick="location.href='/dashboard'" style="background:#111827;border:1px solid #1f2a44">Kembali</button>
+    </div>
+
+    <h4>Topup Pending</h4>
+    <div id="list" class="muted">loading...</div>
+
+    <hr style="border-color:#1f2a44">
+
+    <h4>Tambah/Update Server</h4>
+    <div class="muted">Kosongkan Server ID untuk create baru</div>
+    <input id="sid" placeholder="Server ID (optional)">
+    <input id="name" placeholder="Nama Server">
+    <input id="domain" placeholder="domain: cyber-id.barmods-zivpn.my.id">
+    <input id="authk" placeholder="auth key">
+    <div class="row">
+      <input id="harga" type="number" placeholder="harga create /hari" style="flex:1;min-width:220px">
+      <input id="hargaRenew" type="number" placeholder="harga renew /hari" style="flex:1;min-width:220px">
+    </div>
+    <button id="btnSave">Simpan Server</button>
+    <div class="muted" id="msg"></div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2qOtuozewG34P41Vkl6I_bR9wk43tUlQ",
+    authDomain: "zivpn-e1dd7.firebaseapp.com",
+    projectId: "zivpn-e1dd7",
+    storageBucket: "zivpn-e1dd7.firebasestorage.app",
+    messagingSenderId: "1010308048069",
+    appId: "1:1010308048069:web:d7d69ae0029941d5957cac",
+    measurementId: "G-TDTWLNETJ6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const $ = (id)=>document.getElementById(id);
+
+  async function api(path, method, body, token){
+    const res = await fetch(path, {
+      method,
+      headers: { "Authorization":"Bearer "+token, ...(body?{"content-type":"application/json"}:{}) },
+      body: body ? JSON.stringify(body) : null
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || data.ok===false) throw new Error(data.msg || "Error");
+    return data;
+  }
+
+  async function loadPending(token){
+    const out = await api("/api/admin-topups?status=pending","GET",null,token);
+    if(!out.items.length){ $("list").textContent="Tidak ada pending."; return; }
+    $("list").innerHTML = out.items.map(t=>`
+      <div class="item">
+        <div><b>TopupID:</b> ${t.id}</div>
+        <div><b>UID:</b> ${t.uid}</div>
+        <div><b>Nominal:</b> Rp ${Number(t.requestedAmount||0).toLocaleString("id-ID")}</div>
+        <div><b>Ewallet:</b> ${t.ewalletName} - ${t.ewalletNumber}</div>
+        <div><b>Bukti:</b> <a href="${t.proofUrl}" target="_blank" style="color:#a78bfa">Klik</a></div>
+        <div class="row" style="margin-top:10px">
+          <button onclick="approve('${t.id}')" style="background:#22c55e">✅ Sukses</button>
+          <button onclick="reject('${t.id}')" style="background:#ef4444">❌ Gagal</button>
+        </div>
+      </div>
+    `).join("");
+
+    window.approve = async (id)=>{
+      const note = prompt("Catatan (optional):") || "";
+      await api("/api/admin-topup-approve","POST",{ topupId:id, note },token);
+      await loadPending(token);
+    };
+    window.reject = async (id)=>{
+      const note = prompt("Alasan (optional):") || "";
+      await api("/api/admin-topup-reject","POST",{ topupId:id, note },token);
+      await loadPending(token);
+    };
+  }
+
+  onAuthStateChanged(auth, async (u)=>{
+    if(!u) return location.href="/login";
+    const token = await u.getIdToken();
+
+    // cek admin
+    const me = await api("/api/servers","GET",null,token);
+    if(me.me.role !== "admin"){
+      $("list").textContent = "Akses ditolak (bukan admin).";
+      return;
+    }
+
+    await loadPending(token);
+
+    $("btnSave").onclick = async ()=>{
+      try{
+        const out = await api("/api/admin-server-upsert","POST",{
+          serverId: $("sid").value.trim() || undefined,
+          name: $("name").value.trim(),
+          domain: $("domain").value.trim(),
+          auth: $("authk").value.trim(),
+          harga: Number($("harga").value||0),
+          hargaRenew: Number($("hargaRenew").value||0),
+          resellerOnly: false
+        },token);
+        $("msg").textContent = out.msg;
+      }catch(e){ $("msg").textContent = e.message; }
+    };
+  });
+</script>
+</body>
+</html>
