@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Topup</title>
+  <style>
+    body{margin:0;font-family:system-ui;background:#0b1220;color:#e5e7eb;min-height:100vh;padding:20px}
+    .card{max-width:600px;margin:auto;background:#0f172a;border:1px solid #1f2a44;border-radius:16px;padding:16px}
+    input,button{padding:12px;border-radius:12px;border:1px solid #1f2a44;background:#0a0f1a;color:#e5e7eb;outline:none;margin:6px 0;width:100%}
+    button{cursor:pointer;border:none;background:#7c3aed}
+    .muted{color:#9ca3af;font-size:12px}
+    img{width:100%;border-radius:14px;border:1px solid #1f2a44}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3>Topup (Pending)</h3>
+    <div class="muted">Scan QR, bayar, lalu isi data ewallet + link bukti.</div>
+    <div style="height:10px"></div>
+    <img src="https://img1.pixhost.to/images/11653/685503534_barmods.jpg" alt="QR">
+
+    <input id="ewName" placeholder="Nama ewallet: DANA/OVO/GOPAY">
+    <input id="ewNum" placeholder="Nomor ewallet">
+    <input id="amount" type="number" placeholder="Nominal topup">
+    <input id="proofUrl" placeholder="Link bukti (catbox/imgbb)">
+
+    <button id="btn">Selesai Topup</button>
+    <button onclick="location.href='/dashboard'" style="background:#111827;border:1px solid #1f2a44">Kembali</button>
+    <div class="muted" id="msg"></div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2qOtuozewG34P41Vkl6I_bR9wk43tUlQ",
+    authDomain: "zivpn-e1dd7.firebaseapp.com",
+    projectId: "zivpn-e1dd7",
+    storageBucket: "zivpn-e1dd7.firebasestorage.app",
+    messagingSenderId: "1010308048069",
+    appId: "1:1010308048069:web:d7d69ae0029941d5957cac",
+    measurementId: "G-TDTWLNETJ6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const $ = (id)=>document.getElementById(id);
+
+  async function api(path, method, body, token){
+    const res = await fetch(path, {
+      method,
+      headers: { "Authorization":"Bearer "+token, ...(body?{"content-type":"application/json"}:{}) },
+      body: body ? JSON.stringify(body) : null
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || data.ok===false) throw new Error(data.msg || "Error");
+    return data;
+  }
+
+  onAuthStateChanged(auth, async (u)=>{
+    if(!u) return location.href="/login";
+    const token = await u.getIdToken();
+
+    $("btn").onclick = async ()=>{
+      try{
+        const out = await api("/api/topup-create","POST",{
+          ewalletName: $("ewName").value.trim(),
+          ewalletNumber: $("ewNum").value.trim(),
+          amount: Number($("amount").value||0),
+          proofUrl: $("proofUrl").value.trim()
+        },token);
+        $("msg").textContent = out.msg + " (ID: " + out.topupId + ")";
+      }catch(e){ $("msg").textContent = e.message; }
+    };
+  });
+</script>
+</body>
+</html>
