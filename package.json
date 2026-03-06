@@ -1,0 +1,8 @@
+{
+  "name": "barmods-simple",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.6.8",
+    "firebase-admin": "^12.5.0"
+  }
+}
